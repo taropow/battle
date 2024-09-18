@@ -53,12 +53,12 @@ export enum Tactics {
 
 // Tactics定数に対応する日本語名のMap
 export const tacticsJapaneseNames: Map<Tactics, string> = new Map([
-    [Tactics.ALEXANDER, "アレキサンダー"],   // 任意の色の任意の数字として使用可能
-    [Tactics.DARIUS, "ダリウス"],           // 任意の色の任意の数字として使用可能
+    [Tactics.ALEXANDER, "隊長"],   // 任意の色の任意の数字として使用可能
+    [Tactics.DARIUS, "隊長"],           // 任意の色の任意の数字として使用可能
     [Tactics.COMPANION, "援軍"],        // 任意の色の8として使用可能
     [Tactics.SHIELD, "盾"],           // 任意の色の1, 2, または3として使用可能
     [Tactics.FOG, "霧"],                   // 特定の戦列を無効化
-    [Tactics.MUD, "泥"],                 // 特定の戦列を4枚で完成とする
+    [Tactics.MUD, "沼"],                 // 特定の戦列を4枚で完成とする
     [Tactics.SCOUT, "偵察"],               // カードを引いて捨てる
     [Tactics.REDEPLOY, "再配置"],           // 味方のカードを移動または除去
     [Tactics.DESERTER, "脱走"],           // 敵のカードを1枚除去
@@ -86,6 +86,23 @@ export const troopLikeTacicsCard: Tactics[] = [
     Tactics.COMPANION,
     Tactics.SHIELD
 ];
+
+//天候変化カードの配列
+export const weatherChangeTacticsCard: Tactics[] = [
+    Tactics.FOG,
+    Tactics.MUD
+];
+
+export enum Weather {
+    FOG = 0,
+    MUD = 1,
+}
+
+//天候変化カードと天候の対応関係を持つMap
+export const tacticsWeatherMap: Map<Tactics, Weather> = new Map([
+    [Tactics.FOG, Weather.FOG],
+    [Tactics.MUD, Weather.MUD]
+]);
 
 // GameStateを表す列挙型を定義
 export enum GameState {
@@ -118,12 +135,8 @@ export enum ObjectType{
     TACTICS_CARDS_INACTIVE,
     FIELD_ACTIVE,
     FIELD_INACTIVE,
+    TALON_CARDS_ACTIVE,
+    TALON_CARDS_INACTIVE,
     PASS,
 }
 
- export enum Weather {
-    NORMAL = 0,
-    FOG = 1,
-    MUD = 2,
-    FOG_AND_MUD = 3
-}

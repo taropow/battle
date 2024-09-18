@@ -50,6 +50,8 @@ export class PieceDeck{
                 array[r] = tmp;
               }
         }
+
+        
     
         //保持しているピースデータを指定数取得する、取得したデータは保持している配列から削除される
         //指定数取得出来ないときはすべて返す。空のときはnullを返す
@@ -85,6 +87,10 @@ export class PieceDeck{
             }else{
                 this.pieces.push(pieceData);
             }
+        }
+
+        public addPieceDataLast(pieceData:PieceData){
+            this.pieces.unshift(pieceData);
         }
     
         //すべての部隊ピースデータを生成する
@@ -140,7 +146,15 @@ export class PieceManager {
         this.tacticsDeck.createAllTacticsPieceData();
     }
 
-
+    public getDeckEmpty():boolean{
+        if(this.troopDeck.pieces.length > 0){
+            return false;
+        }
+        if(this.tacticsDeck.pieces.length > 0){
+            return false;
+        }
+        return true;
+    }
 
         
 

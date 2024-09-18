@@ -46,7 +46,7 @@ export class ScoreCalculator {
         const specialCards = { leader: 0, companion: 0, shield: 0 };
 
         formation.forEach(card => {
-            switch (card) {
+            switch (card.valueNumber) {
                 case Tactics.ALEXANDER:
                 case Tactics.DARIUS:
                     specialCards.leader++;
@@ -76,8 +76,8 @@ export class ScoreCalculator {
         let flushScore = 0;
 
         for (const card of sample) {
-            flushScore += card & 0x00ff; // カードの数値を加算
-            if ((sample[0] & 0xff00) === (card & 0xff00)) {
+            flushScore += card.valueNumber & 0x00ff; // カードの数値を加算
+            if ((sample[0].valueNumber & 0xff00) === (card.valueNumber & 0xff00)) {
                 flushCount++; // 同じスートのカードをカウント
             }
         }
@@ -99,23 +99,23 @@ export class ScoreCalculator {
      * @param specialCards 特殊カードの数
      * @returns スリーカードかどうかとそのスコア
      */
-    private static calculateThree(sample: Card[], specialCards: { [key: string]: number }): { isThree: boolean, score: number } {
+    private static calculateThree(sample: PieceData[], specialCards: { [key: string]: number }): { isThree: boolean, score: number } {
         if (sample.length === 0) return { isThree: false, score: 0 };
 
         let threeCount = 1;
-        let threeScore = sample[0] & 0x00ff;
+        let threeScore = sample[0].valueNumber & 0x00ff;
 
         // 同じ数字のカードをカウント
         for (let i = 1; i < sample.length; i++) {
-            if ((sample[0] & 0x00ff) === (sample[i] & 0x00ff)) {
+            if ((sample[0].valueNumber & 0x00ff) === (sample[i].valueNumber & 0x00ff)) {
                 threeCount++;
-                threeScore += sample[i] & 0x00ff;
+                threeScore += sample[i].valueNumber & 0x00ff;
             }
         }
 
         // リーダーカードを使ってスリーカードを完成させる
         if (threeCount + specialCards.leader === sample.length + specialCards.leader) {
-            threeScore += (sample[0] & 0x00ff) * specialCards.leader;
+            threeScore += (sample[0].valueNumber & 0x00ff) * specialCards.leader;
             return { isThree: true, score: threeScore };
         }
 

@@ -4,16 +4,6 @@
 	"fps": 60,
 	"main": "./script/main.js",
 	"assets": {
-		"font": {
-			"type": "image",
-			"path": "image/font.png",
-			"width": 800,
-			"height": 2048
-		},
-		"font_glyph": {
-			"type": "text",
-			"path": "text/font_glyph.json"
-		},
 		"asobikatabtn": {
 			"type": "image",
 			"path": "image/asobikatabtn.png",
@@ -507,6 +497,21 @@
 			"type": "script",
 			"path": "script/Game/phaseActions.js",
 			"global": true
+		},
+		"calculator": {
+			"type": "script",
+			"path": "script/Game/calculator.js",
+			"global": true
+		},
+		"font": {
+			"type": "image",
+			"path": "image/font.png",
+			"width": 4096,
+			"height": 1040
+		},
+		"font_glyph": {
+			"type": "text",
+			"path": "text/font_glyph.json"
 		}
 	},
 	"environment": {

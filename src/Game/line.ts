@@ -2,8 +2,9 @@ import { myArray } from "../Common/MyArray";
 import { Util } from "../Common/Util";
 import { EEntity } from "../EClass/EEntity";
 import { EFillRect } from "../EClass/EFillRect";
+import { ELabel } from "../EClass/ELabel";
 import { GameMain } from "../gameMain";
-import { ObjectType } from "./const";
+import { ObjectType, Weather } from "./const";
 import { Flag } from "./flag";
 import { Piece } from "./picese";
 import { PieceData } from "./pieceManager";
@@ -14,12 +15,26 @@ export class LineGroup extends EEntity{
     public pieces: myArray;
     public sideNumber:number = 0;
 
-    public maxPieceCount:number = 3;
+
+
+    public get maxPieceCount():number{
+        //もしparentBattleLineのweather配列にmudがあるときは4を返す。それ以外は3を返す。
+        if(this.parentBattleLine.checkMud()){
+            return 4;
+        }else{
+            return 3;
+        }
+    }
+
 
     //配置するピースごとのY座標オフセット。これによってピースのズラし表示を実現する。
     public offsetY: number;
 
-    private parentBattleLine:BattleLine;
+    private _parentBattleLine:BattleLine;
+
+    public get parentBattleLine():BattleLine{
+        return this._parentBattleLine;
+    }
 
     constructor(gm:GameMain, x: number, y: number,sideNumber:number,offsetY:number){
         super(gm,x, y);
@@ -47,7 +62,11 @@ export class LineGroup extends EEntity{
     
     //ピースを追加する
     public addPiece(piece:Piece):Piece{
-        
+        //親LineGroupがあるときは取り除く
+        if(piece.parentLineGroup != null){
+            piece.parentLineGroup.removeChildPiece(piece);
+        }
+
         this.pieces.push(piece);
         this.append(piece);
         piece.x = 0;
@@ -111,12 +130,12 @@ export class LineGroup extends EEntity{
     }
 
     public setParentBattleLine(battleLine:BattleLine):void{
-        this.parentBattleLine = battleLine;
+        this._parentBattleLine = battleLine;
     }
 
     public onPieceTouch(piece :Piece):void{
-       if(this.parentBattleLine != null){
-           this.parentBattleLine.onPieceTouch(piece,this);
+       if(this._parentBattleLine != null){
+           this._parentBattleLine.onPieceTouch(piece,this);
        }
     }
 
@@ -131,12 +150,69 @@ export class BattleLine extends EEntity{
     public playerA_Line: LineGroup;
     public playerB_Line: LineGroup;
 
+    //天気状態
+    public weather:myArray;
+    //天候エンティティ
+    public weatherEntity: EEntity;
+
     constructor(gm:GameMain, x: number, y: number){
         super(gm,x, y);
         this.setup();
     }
 
+    //天候変更
+    public addWeather(weather:Weather):void{
+        //すでに同じ天候がある場合は追加しない
+        if(this.weather.indexOf(weather) != -1){
+            return;
+        }
+        this.weather.push(weather);
+
+        this.updateWeatherEntity();
+
+    }
+
+    //weatherにmudがあるときtrue
+    public checkMud():boolean{
+        if(this.weather.indexOf(Weather.MUD) != -1){
+            return true;
+        }
+        return false;
+    }
+
+    //weatherにfogがあるときはtrueを返す
+    public checkFog():boolean{
+        if(this.weather.indexOf(Weather.FOG) != -1){
+            return true;
+        }
+        return false;
+    }
+
+
+    public updateWeatherEntity():void{
+        //weatherEntity内のオブジェクトを走査しすべて削除
+        this.weatherEntity.removeAllChildren();
+
+        let weatherString:string = "";
+        //weatherを走査し、文字列を生成
+        for(let i = 0; i < this.weather.length; i++){
+            switch(this.weather[i]){
+                case Weather.MUD:
+                    weatherString += "沼";
+                    break;
+                case Weather.FOG:
+                    weatherString += "霧";
+                    break;
+            }
+        }
+        let label = this.gm.el.labelCreate(0,0,weatherString, 50, 30,);
+        this.weatherEntity.append(label);
+    }
+
     public setup(): void{
+        //天候初期化
+        this.weather = new myArray();
+
         //タッチエリア
         let touchWidth = 90;
         let touchHeight = 200;
@@ -177,6 +253,10 @@ export class BattleLine extends EEntity{
         this.winFlagB = new Flag(this.gm, this ,0, -this.winFlagOffsetY);
         this.winFlagB.hide();
         this.append(this.winFlagB);
+
+        //天候表示
+        this.weatherEntity = new EEntity(this.gm,20,-20);
+        this.append(this.weatherEntity);
 
     }
 

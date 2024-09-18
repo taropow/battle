@@ -53,15 +53,13 @@ export class TurnManager{
                 this.currentPhase = Phase.REDEPLOY2;
                 break;
             case Phase.REDEPLOY2:
-                this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                this.currentPhase = Phase.DRAW;
                 break;
             case Phase.TRAITOR1:
                 this.currentPhase = Phase.TRAITOR2;
                 break;
             case Phase.TRAITOR2:
-                this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                this.currentPhase = Phase.DRAW;
                 break;
             case Phase.SCOUT1:
                 this.currentPhase = Phase.SCOUT2;
@@ -74,19 +72,17 @@ export class TurnManager{
                 this.currentPhase = Phase.TROOP;
                 break;
             case Phase.DESERTER:
-                this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                this.currentPhase = Phase.DRAW;
                 break;
             case Phase.FOG:
-                this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                this.currentPhase = Phase.DRAW;
                 break;
             case Phase.MUD:
-                this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                this.currentPhase = Phase.DRAW;
                 break;
-        
           }
+
+          console.log("遷移Phase:"+Phase[this.currentPhase]);
     }
 
 

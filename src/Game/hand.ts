@@ -1,14 +1,20 @@
 import { myArray } from "../Common/MyArray";
 import { EEntity } from "../EClass/EEntity";
 import { GameMain } from "../gameMain";
+import { Tactics } from "./const";
 import { Piece } from "./picese";
 import { PieceData } from "./pieceManager";
 
 //プレイヤーの手札を表すクラス
 export class Hand extends EEntity{
     public pieces: myArray;
-    public offsetX:number = 100;
+    public offsetX:number = 60;
     public pieceOriginX:number;//カードの原点が中央なのでカードの幅の半分を保持しておく
+
+    //捨札
+    public talonPieces:myArray;    
+    public talonOriginX:number = 800;
+    public talonOffsetX:number = 60;
 
     public sideNumber = 0;
     public selectMoveY = 20;//選択時に上にずらす量
@@ -24,6 +30,9 @@ export class Hand extends EEntity{
         this.pieces = new myArray();
         this.sideNumber = side;
         this.pieceOriginX = gm.assets["obj_ura_base"].width/2;
+
+        //捨札
+        this.talonPieces = new myArray();
     }
 
     public piecesClearAndDestroy():void{
@@ -31,6 +40,21 @@ export class Hand extends EEntity{
             this.pieces[i].destroy();
         }
         this.pieces = new myArray();
+
+        for(let i:number = 0; i < this.talonPieces.length; i++){
+            this.talonPieces[i].destroy();
+        }
+        this.talonPieces = new myArray();
+    }
+
+    public selectedPieceIsScout():boolean{
+        if(this.selectedPiece == null){
+            return null;
+        }
+        if(this.selectedPiece.valueNumber != Tactics.SCOUT){
+            return false;
+        }
+        return true;
     }
 
     public addPiece(piece:Piece):Piece{
@@ -41,6 +65,34 @@ export class Hand extends EEntity{
         piece.y = 0;
         piece.modified();
         return piece;
+    }
+
+    public addTalonPiece(piece:Piece):Piece{
+        if(piece == null){
+            throw new Error("piece is null");
+        }
+
+        this.talonPieces.push(piece);
+        if(piece.parent != null){
+            piece.parent.remove(piece);
+        }
+
+        this.append(piece);
+        piece.setParentHand(this);
+        piece.setParentGroup(null);
+
+        piece.x = (this.talonOffsetX * (this.talonPieces.length - 1)) + this.talonOriginX;
+        piece.y = 0;
+        piece.modified();
+        return piece;
+    }
+
+    public isSelfTalonPiece(piece:Piece):boolean{
+        const index = this.talonPieces.indexOf(piece);
+        if(index == -1){
+            return false;
+        }
+        return true;
     }
 
     public addPiece2(pieceData:PieceData):Piece{
@@ -101,13 +153,28 @@ export class Hand extends EEntity{
         return removedPiece;
     }
 
-    public unselectPiece(p:Piece):void{
+    
+    public removeSelectedPieceAndGoTalon(){
+        const p = this.selectedPiece;
+        if(p == null){
+            throw new Error("p is null");
+        }
+
+        this.removePiece(p);
+        this.addTalonPiece(p);    
+    }
+
+    public unSelectPiece():void{
         this.alignPieces();
         this._selectedPiece = null;
     }
 
     public onPieceTouch(p:Piece):void{
         console.log("onPieceTouch in Hand");
+        if(this.isSelfTalonPiece(p)){
+            this.gm.onHandTalonPieceTouch(p,this);
+            return;
+        }
         this.gm.onHandPieceTouch(p,this);
     }
 }

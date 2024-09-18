@@ -66,8 +66,8 @@ export class Piece extends EEntity{
         
 
         //数字を表示
-        let labelWidth = 55;
-        let labelFontSize = 40;
+        let labelWidth = 80;
+        let labelFontSize = 30;
         
         
         
@@ -92,8 +92,9 @@ export class Piece extends EEntity{
         console.log("Piece valueString:"+valueString);
         console.log(valueNumber);
         
-        this.numLabel = gm.el.labelCreateCenter( 0, -5, valueString, labelWidth,  labelFontSize);
-        this.numLabel2 = gm.el.labelCreateCenter( 40, 40, valueString, labelWidth,  labelFontSize);
+        this.numLabel = gm.el.labelCreate( 3, 3, valueString, labelWidth,  labelFontSize);
+        this.numLabel2 = gm.el.labelCreateRight( 8, 53, valueString, labelWidth,  labelFontSize);
+
         this.base.append(this.numLabel);
         this.base.append(this.numLabel2);
 
@@ -116,6 +117,15 @@ export class Piece extends EEntity{
 
     public setParentHand(hand:Hand):void{
         this._parentHand = hand;
+    }
+
+    public isTalonPiece():boolean{
+        if(this.parentHand == null)return false;
+        if(this.parentHand.isSelfTalonPiece(this)){
+            return true;
+        }
+
+        return false;
     }
     
 

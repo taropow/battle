@@ -32,6 +32,19 @@ export class EEntity extends g.E {
         return this.childTagGet("name", name);
     }
 
+    //子のオブジェクトをすべて削除
+    public removeAllChildren() {
+        if(this.children == null){
+            return;
+        }
+        if(this.children.length == 0){
+            return;
+        }
+        for (var i = 0; i < this.children.length; i++) {
+            this.children[i].destroy();
+        }
+    }
+
     public childTagGet(key: string, val: string): g.E {
         let e: g.E;
         for (var i = 0; i < this.children.length; i++) {
