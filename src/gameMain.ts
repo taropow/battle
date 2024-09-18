@@ -241,8 +241,10 @@ export class GameMain{
             }
             this.scoutCount++;
             if(this.scoutCount >= this.scoutCountMax){//偵察の最大数に達した
+                this.scoutCount = 2;
                 this.turnManager.transitionPhase();
             }else if(this.pieceManager.getDeckEmpty()){//デッキがすべて空になった
+                this.scoutCount = 2;
                 this.turnManager.transitionPhase();
             }
             return;

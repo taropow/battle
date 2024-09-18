@@ -69,17 +69,12 @@ export class LineGroup extends EEntity{
 
         this.pieces.push(piece);
         this.append(piece);
-        piece.x = 0;
-        piece.y = this.offsetY * (this.pieces.length - 1);
-
-        //offsetYがマイナスの場合は起点が下になるので、Y座標を調整する
-        if(this.offsetY < 0){
-            piece.y -= this.gm.assets[piece.getBgBaseName()].height;
-        }
+        
 
         //親グループを設定
         piece.setParentGroup(this);
 
+        this.alignPiece();
         piece.modified();
 
         console.log("addPiece:"+piece.colorNumber+","+piece.valueNumber);
@@ -101,6 +96,8 @@ export class LineGroup extends EEntity{
             this.remove(piece);
             piece.setParentGroup(null);
         }
+        this.modified();
+        this.alignPiece();
     }
 
     //ピースの数を返す
@@ -110,21 +107,18 @@ export class LineGroup extends EEntity{
 
     //ピースを整列する。オフセットYを1枚毎に加算していく。
     public alignPiece():void{
-        //ピース配列を一時保存
-        let tempArray:myArray = new myArray();
-        tempArray.concat_myArray(this.pieces);
-
-        //ピースを一度すべて場から取り除く。
-        for(let i:number = 0; i < tempArray.length; i++){
-            this.remove(tempArray[i]);
-        }
-
-        this.pieces = new myArray();
 
         //ピースを再配置
-        for(let i:number = 0; i < tempArray.length; i++){
-            let p = this.addPiece(tempArray[i]);
+        for(let i:number = 0; i < this.pieces.length; i++){
+            let p = this.pieces[i];
             p.y = this.offsetY * i;
+            p.x = 0;
+
+            //offsetYがマイナスの場合は起点が下になるので、Y座標を調整する
+            if(this.offsetY < 0){
+                p.y -= this.gm.assets[p.getBgBaseName()].height;
+            }
+
             p.modified();
         }
     }
