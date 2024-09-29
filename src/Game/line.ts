@@ -1,13 +1,15 @@
+import { Player } from "@akashic/akashic-engine";
 import { myArray } from "../Common/MyArray";
 import { Util } from "../Common/Util";
 import { EEntity } from "../EClass/EEntity";
 import { EFillRect } from "../EClass/EFillRect";
 import { ELabel } from "../EClass/ELabel";
 import { GameMain } from "../gameMain";
-import { ObjectType, Weather } from "./const";
+import { ObjectType, PieceType, PLAYER_A, PLAYER_B, Players, ResolutionState, Tactics, Weather } from "./const";
 import { Flag } from "./flag";
 import { Piece } from "./picese";
-import { PieceData } from "./pieceManager";
+import { PieceData, PieceManager } from "./pieceManager";
+import { BattleLineRules } from "./calculator";
 
 //バトルラインクラスで使用する片面のグループ。重なり順と整列を制御する。
 export class LineGroup extends EEntity{
@@ -52,12 +54,63 @@ export class LineGroup extends EEntity{
         this.pieces = new myArray();
     }
 
-    public checkPieceCount():boolean{
+    //ピースを追加することが可能かどうかを返す
+    public checkAddPiece():boolean{
+        //フラグが取られているときは追加不可
+        if(this.parentBattleLine.flagTaken){
+            return false;
+        }
+        //ピース数が最大数未満のときは追加可能
         if(this.pieces.length < this.maxPieceCount){
             return true;
         }else{
             return false;
         }
+    }
+
+    //指定ピースデータを持つピースが存在するかどうかを返す
+    public checkPieceDataExist(pieceData:PieceData):boolean{
+        for(let i:number = 0; i < this.pieces.length; i++){
+            const p:Piece = this.pieces[i];
+            if(p.pieceData.pieceType == PieceType.TROOP){
+                if((p.pieceData.value == pieceData.value)&&(p.pieceData.color == pieceData.color)){
+                    return true;
+                }
+            }else if(p.pieceData.pieceType == PieceType.TACTICS){
+                if(p.pieceData.value == pieceData.value){
+                    return true;
+                }
+            }
+        return false;
+        }
+    }
+
+    //指定戦術が存在するかどうかを返す
+    public checkTacitcsExist(tactics:Tactics):boolean{
+        for(let i:number = 0; i < this.pieces.length; i++){
+            const p:Piece = this.pieces[i];
+            if(p.pieceData.pieceType == PieceType.TACTICS){
+                if(p.pieceData.tactics == tactics){
+                    return true;
+                }
+            }
+        }
+        return false
+    }
+
+    //再配置で移動元に指定できるカードがあるか返す。再配置できるのはtroopのみ
+    public checkMoveFromTroopExist():boolean{
+         //フラグが取られているときは移動元に指定できない
+         if(this.parentBattleLine.flagTaken){
+            return false;
+        }
+        for(let i:number = 0; i < this.pieces.length; i++){
+            const p:Piece = this.pieces[i];
+            if(p.pieceData.pieceType == PieceType.TROOP){
+                return true;
+            }
+        }
+        return false;
     }
     
     //ピースを追加する
@@ -133,6 +186,16 @@ export class LineGroup extends EEntity{
        }
     }
 
+    //すべてのpiecedataを[]配列で返す
+    public getAllPieceData():PieceData[]{
+        let ret:PieceData[] = [];
+        for(let i:number = 0; i < this.pieces.length; i++){
+            ret.push(this.pieces[i].pieceData);
+        }
+        return ret;
+    }
+    
+
 
 }
 
@@ -143,6 +206,9 @@ export class BattleLine extends EEntity{
     public winFlagOffsetY = 220;//勝利フラグのY座標オフセット
     public playerA_Line: LineGroup;
     public playerB_Line: LineGroup;
+
+    //旗が取られている
+    public flagTaken: boolean = false;
 
     //天気状態
     public weather:myArray;
@@ -180,6 +246,17 @@ export class BattleLine extends EEntity{
             return true;
         }
         return false;
+    }
+
+    //指定プレイヤーのライングループを返す
+    public getLineGroup(player:Players):LineGroup{
+        if(player == PLAYER_A){
+            return this.playerA_Line;
+        }else if(player == PLAYER_B){
+            return this.playerB_Line;
+        }else{
+            throw new Error("getLineGroup:unknown player");
+        }
     }
 
 
@@ -270,6 +347,8 @@ export class BattleLine extends EEntity{
 
     }
 
+    
+
     public onTouchAreaTouch(playerSideNumber:number):void{
         console.log("onTouchAreaTouch:"+playerSideNumber);
         let currentLineGroup:LineGroup;
@@ -286,6 +365,63 @@ export class BattleLine extends EEntity{
 
     public onFlagTouch(flag:Flag):void{
         console.log("onFlagTouch");
-        this.gm.onFlagTouch(flag);
+        const result = this.checkFlagResolution(this.gm.pieceManager.getAllTroopPieceData());
+        this.gm.onFlagTouch(flag,this,result.state,result.winnerActive);
+        
+    }
+
+    //現在のアクティブプレイヤーのLineGroupを返す
+    public getCurrentActiveLineGroup():LineGroup{
+        return this.getLineGroup(this.gm.turnManager.currentPlayer);
+    }
+
+    public getFlag(player:Players):Flag{
+
+        let winFlag = null;
+        if(player == PLAYER_A){
+            winFlag = this.winFlagA;
+        }else if(player == PLAYER_B){
+            winFlag = this.winFlagB;
+        }else{
+            throw new Error("getFlag:unknown player");
+        }
+
+        this.flagTaken = true;
+        winFlag.showFlag();
+        this.centerFlag.hideFlag();
+        return winFlag;
+    }
+
+    //旗の判定を行う
+    //remianingCards:残りのカード
+    public checkFlagResolution(remainingCards:PieceData[]):{ state: ResolutionState; winnerActive:boolean }{
+        const currentPlayer = this.gm.turnManager.currentPlayer;
+
+        let activeFormation = null;
+        let inactiveFormation = null;
+
+        //現在のプレイヤーに合わせてactiveFormationとinactiveFormationを設定
+        if(currentPlayer == PLAYER_A){
+            activeFormation = this.playerA_Line.getAllPieceData();
+            inactiveFormation = this.playerB_Line.getAllPieceData();
+        }else if(currentPlayer == PLAYER_B){
+            activeFormation = this.playerB_Line.getAllPieceData();
+            inactiveFormation = this.playerA_Line.getAllPieceData();
+        }
+
+        const resolution = BattleLineRules.resolveFormation(activeFormation, inactiveFormation, this.weather, remainingCards);
+
+        const state:ResolutionState = resolution.state;
+        const winnerActive = resolution.winnerActive;
+
+        return {state,winnerActive};
+
+        // if (resolution.state === ResolutionState.RESOLVED) {
+        //     console.log(`★勝者: ${resolution.winner === 'active' ? 'アクティブプレイヤー' : '非アクティブプレイヤー'}`);
+        //     return true;
+        // } else {
+        //     console.log('★勝敗未確定');
+        //     return false;
+        // }
     }
 }

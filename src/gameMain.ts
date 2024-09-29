@@ -13,9 +13,11 @@ import { Util } from "./Common/Util";
 import { PieceData, PieceDeck, PieceManager } from "./Game/pieceManager";
 import { TurnManager } from "./Game/turnManager";
 import { Action, PhaseActions } from "./Game/phaseActions";
-import { ActionType, ObjectType, Phase, PieceType, Tactics, tacticsPhaseMap, tacticsWeatherMap, troopLikeTacicsCard, Weather, weatherChangeTacticsCard } from "./Game/const";
+import { ActionType, ObjectType, Phase, PieceType, Players, ResolutionState, Tactics, tacticsColors, tacticsPhaseMap, tacticsWeatherMap, troopLikeTacicsCard, TurnSide, Weather, weatherChangeTacticsCard } from "./Game/const";
 import { Flag } from "./Game/flag";
 import { ELabel } from "./EClass/ELabel";
+import { myArray } from "./Common/MyArray";
+import { FieldManager } from "./Game/fieldManager";
 
 export class GameMain{
     public gs:GameSystem;
@@ -43,9 +45,14 @@ export class GameMain{
 
     public pieceManager:PieceManager;
     public turnManager:TurnManager;
+    public fieldManager:FieldManager;
+
+    
 
     //ピース移動関係
     public moveFromPiece:Piece = null;
+
+    public passButton:ESprite;
 
     //偵察カウント用
     public scoutCountMax = 3;
@@ -86,7 +93,7 @@ export class GameMain{
 
         //マネージャーの初期化
         this.pieceManager = new PieceManager();
-        this.turnManager = new TurnManager();
+        this.turnManager = new TurnManager(this);
 
         this.pieceManager.init();
 
@@ -141,8 +148,6 @@ export class GameMain{
     public start(){
         console.log("GameMain start");
 
-        
-
         //座標系
         let leftMargin:number = 15;
         let linesOriginX:number = leftMargin + this.assets["obj_ura_base"].width/2;
@@ -151,24 +156,11 @@ export class GameMain{
         this.playerB_Hand = new Hand(this, leftMargin, 40,1);
         this.playerA_Hand = new Hand(this, leftMargin, 600,0);
 
-        //ラインを生成
-        //battlelineを9本並べてみる
-        for(let i:number = 0; i < 9; i++){
-            let l = new BattleLine(this, linesOriginX + i * 100, 350);
-            this.addObject(l);
-        }
+        this.fieldManager = new FieldManager(this,linesOriginX);
 
         //各プレイヤーのハンドを追加　表示順のためこの位置で追加
         this.addObject(this.playerA_Hand);
         this.addObject(this.playerB_Hand);
-
-        //手札を生成テスト
-        // for(let i:number = 0; i < 10; i++){
-        //     let pd1 = new PieceData(BUTAI,Util.gameRandInt(1,5), Util.gameRandInt(1, 10));
-        //     let pd2 = new PieceData(BUTAI,Util.gameRandInt(1,5), Util.gameRandInt(1, 10));
-        //     this.playerA_Hand.addPiece2(pd1);
-        //     this.playerB_Hand.addPiece2(pd2);
-        // }
 
         //テスト手札追加
         this.drawTroopCardToTargetHand(0,7);
@@ -198,7 +190,25 @@ export class GameMain{
             this.updateDecksCount();
         },this);
 
+        //パスボタン
+        this.passButton = new ESprite(this, "btn_pass", 940, 325);
+        this.addObject(this.passButton);
+        this.passButton.addPointDownHandler(()=>{
+            this.onPassButtonTouch();
+        },this);
 
+        //ターン開始
+        this.turnManager.GameStartFirstPhase();
+    }
+
+    private onPassButtonTouch(){
+        //パーミッションをチェック
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,this.passButton)){
+            console.log("no permission");
+            return;
+        }
+        console.log("permission allowed");
+        this.executeAction({ type: ActionType.END_TURN, payload: {} });
     }
 
     private updateDecksCount(){
@@ -212,7 +222,7 @@ export class GameMain{
 
     private onDeckTouch(pieceType:PieceType,deck:PieceDeck){
         //パーミッションをチェック
-        if(!this.checkPermission(this.turnManager.currentPhase,deck)){
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,deck)){
             console.log("no permission");
             return;
         }
@@ -221,7 +231,7 @@ export class GameMain{
         const playerHand = this.getPlayerHand(this.turnManager.currentPlayer);
 
         //部隊戦術ターンで偵察を選択した状態で山札をタップすると偵察開始
-        if(this.turnManager.currentPhase == Phase.TROOP){
+        if(this.turnManager.currentPhase == Phase.PLAYPIECE_OR_FLAG){
             if(playerHand.selectedPieceIsScout()){
                 const result = this.executeAction({type:ActionType.PLAY_CARD, payload:{piece:playerHand.selectedPiece,target:deck}});
                 if(!result){
@@ -265,7 +275,7 @@ export class GameMain{
         console.log("onLineTouchAreaTouch side:"+lineGroup.sideNumber);
 
         //パーミッションをチェック
-        if(!this.checkPermission(this.turnManager.currentPhase,lineGroup)){
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,lineGroup)){
             console.log("no permission");
             return;
         }
@@ -285,7 +295,7 @@ export class GameMain{
         
         //フェイズによって処理を分ける
         //部隊戦術使用フェイズ
-        if(this.turnManager.currentPhase == Phase.TROOP){
+        if(this.turnManager.currentPhase == Phase.PLAYPIECE_OR_FLAG){
             this.executeAction({ type: ActionType.PLAY_CARD, payload: { piece: selectedPiece, target: lineGroup } });
         //再配置の移動先指定
         }else if(this.turnManager.currentPhase == Phase.REDEPLOY2){
@@ -306,7 +316,7 @@ export class GameMain{
         console.log(Phase[this.turnManager.currentPhase]);
 
         //パーミッションをチェック
-        if(!this.checkPermission(this.turnManager.currentPhase,piece)){
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,piece)){
             console.log(this.turnManager.currentPhase);
             console.log(PhaseActions.getPhasePermissionObjectMap(this.turnManager.currentPhase));
             console.log("no permission");
@@ -327,12 +337,12 @@ export class GameMain{
             console.log("selectedPiece is null");
             return;
         }
-        console.log("selectedPiece "+activeSelectedPiece.pieceData.valueNumber);
+        console.log("selectedPiece "+activeSelectedPiece.pieceData.value);
 
 
         //フェイズによって処理を分ける
         //部隊戦術使用フェイズ
-        if(this.turnManager.currentPhase == Phase.TROOP){
+        if(this.turnManager.currentPhase == Phase.PLAYPIECE_OR_FLAG){
             this.executeAction({ type: ActionType.PLAY_CARD, payload: { piece: activeSelectedPiece, target: piece } });
         //再配置の移動先指定
         }else if(this.turnManager.currentPhase == Phase.REDEPLOY2){
@@ -356,7 +366,7 @@ export class GameMain{
         let playerSideNumber = hand.sideNumber;
 
         //パーミッションをチェック
-        if(!this.checkPermission(this.turnManager.currentPhase,hand)){
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,hand)){
             console.log("no permission");
             return;
         }
@@ -364,7 +374,7 @@ export class GameMain{
         
         //タッチされたハンドが現在のターンプレイヤーのものでない場合は何もしない
         if(playerSideNumber == this.turnManager.currentPlayer){
-            if(this.turnManager.currentPhase == Phase.TROOP){
+            if(this.turnManager.currentPhase == Phase.PLAYPIECE_OR_FLAG){
             hand.selectPiece(piece);
             }
             //デッキに戻す処理
@@ -398,18 +408,70 @@ export class GameMain{
         console.log("onHandTalonPieceTouch");
     }
 
-    public onFlagTouch(flag:Flag){
+    public onFlagTouch(flag:Flag,bl:BattleLine, resolutionState: ResolutionState, winnerActive:boolean ){
         console.log("onFlagTouch");
+        
         //パーミッションをチェック
-        if(!this.checkPermission(this.turnManager.currentPhase,flag)){
+        if(!this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,flag)){
             console.log("no permission");
             return;
         }
         console.log("permission allowed");
 
-        //フラグを取得
-        this.executeAction({ type: ActionType.CLAIM_FLAG, payload: { flag: flag } });
+        if(resolutionState == ResolutionState.RESOLVED){
+            if(winnerActive){
+                this.executeAction({ type: ActionType.CLAIM_FLAG, payload: { flag: flag,battleLine:bl } });
+            }else{
+                console.log("解決済みだが未勝利");
+            }
+        }else{
+            console.log("未解決");
+        }
+
+
     }
+
+    //各ターンごとの遷移直後の処理をselectで分岐して実行
+    public executeTurnInitAction():void{
+        switch(this.turnManager.currentPhase){
+            //開始フェイズ、即座に次のフェイズへ
+            case Phase.STARTUP:
+                console.log("startUp");
+                this.passButton.hide();//パスボタンを非表示
+                this.turnManager.transitionPhase();
+                break;
+                
+            case Phase.PLAYPIECE_OR_FLAG: //カードプレイフェイズ
+                //プレイするカードがなければパスボタンを表示
+                const result = this.fieldManager.checkPlayerCanPlayCard(this.turnManager.currentPlayer);
+                break;
+            case Phase.DRAW: //ドローフェイズ
+                //デッキにカードがなければパスボタンを表示
+                if(this.pieceManager.getDeckEmpty()){
+                    this.passButton.show();
+                }
+                break;
+            case Phase.SCOUT1:
+                break;
+            case Phase.SCOUT2:
+                break;
+            case Phase.SCOUT3:
+                break;
+            case Phase.PLAYPIECE_OR_FLAG:
+                break;
+            case Phase.REDEPLOY1:
+                break;
+            case Phase.REDEPLOY2:
+                break;
+            case Phase.TRAITOR1:
+                break;
+            case Phase.TRAITOR2:
+                break;
+            default:
+                throw new Error("unknown phase");
+        }
+    }
+
 
     //アクションを実行　現在のフェイズで許可されたアクションだけを実行する
     public executeAction(action: Action): boolean {
@@ -422,15 +484,15 @@ export class GameMain{
               this.playCard(action.payload.piece, action.payload.target);
               break;
             case ActionType.APPLY_WEATHER:
-              this.applyWeather(action.payload.piece ,action.payload.target, action.payload.weather);
+              this.fieldManager.applyWeather(action.payload.piece ,action.payload.target, action.payload.weather);
               break;
             case ActionType.MOVE_CARD:
-              const result = this.moveCard(action.payload.from, action.payload.to);
+              const result = this.fieldManager.moveCard(action.payload.from, action.payload.to);
               if(!result)return false;
               break;
             case ActionType.REMOVE_CARD:
                 const p = action.payload.target as Piece;
-                this.removeCard(p);
+                this.fieldManager.removeCard(p);
                 break;
             case ActionType.DRAW_CARD:{
                 const result = this.drawCard(action.payload.pieceType);
@@ -438,15 +500,15 @@ export class GameMain{
                 }
               break;
             case ActionType.CLAIM_FLAG:
-              this.claimFlag(action.payload.flagIndex);
+              this.fieldManager.claimFlag(action.payload.battleLine);
               break;
             case ActionType.END_REDEPLOYMENT:
-                this.moveFromPiece = null;
+                this.resetMovePiece();
                 playerHand.removeSelectedPieceAndGoTalon();
                 this.turnManager.transitionPhase();
                 break;
             case ActionType.END_TRAITOR_ACTION:
-                this.moveFromPiece = null;
+                this.resetMovePiece();
                 playerHand.removeSelectedPieceAndGoTalon();
                 this.turnManager.transitionPhase();
                 break;
@@ -468,6 +530,8 @@ export class GameMain{
     //各ターンのアクション
     //////////////////////////////////////
 
+
+
     //カードをプレイする
     private playCard(piece:Piece,target:any): void {
         console.log("playCard");
@@ -476,49 +540,40 @@ export class GameMain{
             return;
         }
 
-
         //pieceがTroopのとき
         if(piece.pieceData.pieceType == PieceType.TROOP){
             const result = this.playTroopCard(piece,target);
             if(!result)return;
             this.turnManager.transitionPhase();
-
         //pieceがTacticsのとき
         }else if(piece.pieceData.pieceType == PieceType.TACTICS){
-
-
             this.executeTacitcsCardAndPhaseChange(piece,target);
-
         }
         
     }
-    private applyWeather(piece:Piece, target:BattleLine, weather: Weather): void {
-        target.addWeather(weather);
 
-        
-    }
-    private moveCard(from:Piece, to:LineGroup): boolean {
-        
-        //ラインにピース追加可能か
-        if(!to.checkPieceCount()){
-            return false;;
+    //脱走を持ってるか
+    public checkHasDeserter():boolean{
+        let playerHand = this.getPlayerHand(this.turnManager.currentPlayer);
+        for(let i = 0; i < playerHand.pieces.length; i++){
+            if(playerHand.pieces[i].pieceData.tactics == Tactics.DESERTER){
+                return true;
+            }
         }
-        from.setParentHand(null);
-        to.addPiece(from);
-        return true;
-    }
-    private removeCard(target:Piece): void {
-        let targetLineGroup:LineGroup = target.parentLineGroup;
-        if(targetLineGroup == null){
-            console.log("lineGroup is null");
-            return;
-        }
-        let targetHand:Hand = this.getPlayerHand(target.parentLineGroup.sideNumber);
-        targetLineGroup.removeChildPiece(target);
-        targetHand.addTalonPiece(target);
-        
+        return false;
     }
 
+    //再配置を持っているか
+    public checkHasRedeploy():boolean{
+        let playerHand = this.getPlayerHand(this.turnManager.currentPlayer);
+        for(let i = 0; i < playerHand.pieces.length; i++){
+            if(playerHand.pieces[i].pieceData.tactics == Tactics.REDEPLOY){
+                return true;
+            }
+        }
+        return false;
+    }
+ 
     //カードを引く
     private drawCard(pieceType:PieceType): boolean {
         let result = false;
@@ -529,14 +584,13 @@ export class GameMain{
         }else{
             throw new Error("drawCard:unknown pieceType");
         }
-
-        
-
         return result;
+    }
+
+    private endTurn(): void {
+        this.turnManager.switchToNextPlayer();
         
     }
-    private claimFlag(flagIndex: number): void { /* ... */ }
-    private endTurn(): void { /* ... */ }
 
     //////////////////////////////////////
     //各ターンのアクション終わり
@@ -544,7 +598,7 @@ export class GameMain{
 
     //戦術カードを実行する
     private executeTacitcsCardAndPhaseChange(piece:Piece,target:any):void{
-        let nextPhase = tacticsPhaseMap.get(piece.pieceData.valueNumber);
+        let nextPhase = tacticsPhaseMap.get(piece.pieceData.tactics);
         let nextPhaseName = Phase[nextPhase];
         
         let lastPhase = this.turnManager.currentPhase;
@@ -554,8 +608,8 @@ export class GameMain{
         console.log("tacticsPhase:"+Phase[this.turnManager.currentPhase]);
 
         //戦術カードによっては部隊カードのように動作させる
-        if(troopLikeTacicsCard.indexOf(piece.pieceData.valueNumber) != -1){
-            console.log("troopLikeTacicsCard"+piece.pieceData.valueNumber);
+        if(troopLikeTacicsCard.indexOf(piece.pieceData.tactics) != -1){
+            console.log("troopLikeTacicsCard"+Tactics[piece.pieceData.tactics]);
             const result = this.playTroopLikeTacticsCard(piece,target);
             if(!result){
                 this.turnManager.currentPhase = lastPhase;
@@ -565,7 +619,7 @@ export class GameMain{
             this.turnManager.transitionPhase();
             return;
         //天候変化系カードの場合
-        }else if(weatherChangeTacticsCard.indexOf(piece.pieceData.valueNumber) != -1){
+        }else if(weatherChangeTacticsCard.indexOf(piece.pieceData.tactics) != -1){
             console.log("weatherChangeTacticsCard");
             console.log(target);
             let bl:BattleLine = null;
@@ -581,14 +635,16 @@ export class GameMain{
             if(bl == null){
                 throw new Error("battleLine is null");
             }
-            const weather = tacticsWeatherMap.get(piece.pieceData.valueNumber);
-            
+            const weather = tacticsWeatherMap.get(piece.pieceData.tactics);
+            if(weather == undefined){
+                throw new Error("weather is undefined");
+            }
             this.executeAction({ type: ActionType.APPLY_WEATHER, payload: {piece:piece, target: bl, weather: weather } });
 
            
         //脱走の場合は即座にフェイズが進む　パーミション外の場合は何もしない
-        }else if (piece.pieceData.valueNumber == Tactics.DESERTER){
-            const permission:Boolean = this.checkPermission(this.turnManager.currentPhase,target);
+        }else if (piece.pieceData.tactics == Tactics.DESERTER){
+            const permission:Boolean = this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,target);
             //権限ない場合はもどのフェイズに戻す
             if(!permission){
                 console.log("no permission");
@@ -599,25 +655,28 @@ export class GameMain{
 
             
         //再配置
-        }else if(piece.pieceData.valueNumber == Tactics.REDEPLOY){
-            this.moveFromPiece = null;
-            const permission:Boolean = this.checkPermission(this.turnManager.currentPhase,target);
+        }else if(piece.pieceData.tactics == Tactics.REDEPLOY){
+            console.log("再配置");
+            this.resetMovePiece();
+            const permission:Boolean = this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,target);
             //権限ない場合はもとのフェイズに戻す
             if(!permission){
                 console.log("no permission");
                 this.turnManager.currentPhase = lastPhase;
                 return;
             }
+            console.log("permission allowed");
             //再配置元のピースを設定。
-            this.moveFromPiece = target as Piece;
+            this.setMovePiece(target as Piece);
             //redeploy2へ遷移　どこに移動するかを指定する
             this.turnManager.transitionPhase();
 
             return;
         //裏切り
-        }else if(piece.pieceData.valueNumber == Tactics.TRAITOR){
+        }else if(piece.pieceData.tactics == Tactics.TRAITOR){
             this.moveFromPiece = null;
-            const permission:Boolean = this.checkPermission(this.turnManager.currentPhase,target);
+            
+            const permission:Boolean = this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,target);
             //権限ない場合はもとのフェイズに戻す
             if(!permission){
                 console.log("no permission");
@@ -625,16 +684,16 @@ export class GameMain{
                 return;
             }
             //再配置元のピースを設定。
-            this.moveFromPiece = target as Piece;
+            this.setMovePiece(target as Piece);
             //traitor2へ遷移　どこに移動するかを指定する
             this.turnManager.transitionPhase();
 
             return;
         //偵察
-        }else if(piece.pieceData.valueNumber == Tactics.SCOUT){
+        }else if(piece.pieceData.tactics == Tactics.SCOUT){
             this.getPlayerHand(this.turnManager.currentPlayer).unSelectPiece();
             this.scoutCount = 0;
-            const permission:Boolean = this.checkPermission(this.turnManager.currentPhase,target);
+            const permission:Boolean = this.checkPhasePermissionAndFlag(this.turnManager.currentPhase,target);
             //権限ない場合はもとのフェイズに戻す
             if(!permission){
                 console.log("no permission");
@@ -669,7 +728,8 @@ export class GameMain{
             targetLineGroup = (target as Piece).parentLineGroup;
         }else{
             console.log(target);
-            throw new Error("target is invalid");
+            console.log("target is invalid");
+            return false;
         }
         
         //ライングループが自分サイドのものでない場合は何もしない
@@ -683,7 +743,7 @@ export class GameMain{
         }
 
         //ラインにピース追加可能か
-        if(!targetLineGroup.checkPieceCount()){
+        if(!targetLineGroup.checkAddPiece()){
             return false;;
         }
 
@@ -693,7 +753,47 @@ export class GameMain{
         return true;
     }
 
+    private setMovePiece(piece:Piece){
+        this.moveFromPiece = piece;
+        this.moveFromPiece.showFrame();
+    }
+
+    private resetMovePiece(){
+        if(this.moveFromPiece == null){
+            return;
+        }
+        this.moveFromPiece.hideFrame();
+        this.moveFromPiece = null;
+    }
+
+
+
     public playTroopLikeTacticsCard(piece:Piece,target:any):boolean{
+        const pd = piece.pieceData;
+        const player = this.turnManager.currentPlayer;
+        
+        //部隊系の戦術カードでない場合はエラー
+        if( troopLikeTacicsCard.indexOf(pd.tactics) == -1){
+            throw new Error("playTroopLikeTacticsCard:invalid tactics card");
+        }
+
+        //Alxanderのときはdarius。dariusのときはalexanderを変数に入れる
+        let targetTacticsType = null;
+        if(pd.tactics == Tactics.ALEXANDER){
+            targetTacticsType = Tactics.DARIUS;
+        }else if(pd.tactics == Tactics.DARIUS){
+            targetTacticsType = Tactics.ALEXANDER;
+        }
+
+        if(targetTacticsType != null){
+            const targetPieceData = new PieceData(PieceType.TACTICS,tacticsColors.get[targetTacticsType],targetTacticsType,targetTacticsType);
+            //指定したプレイヤーのすべての場に指定のカードが存在する場合は失敗を返す
+            if(this.fieldManager.checkAllFieldHasPiece(targetPieceData,player)){
+                console.warn("playTroopLikeTacticsCard:場に既にほかの隊長カードが存在する");
+                return false;
+            }
+        }
+
         return this.playTroopCard(piece,target);
     }
 
@@ -734,7 +834,7 @@ export class GameMain{
     }
 
     //phasePermissionObjectMapから権限を取得し、権限があるかどうかを返す
-    public checkPermission(phase:Phase,target:any):boolean{
+    public checkPhasePermissionAndFlag(phase:Phase,target:any):boolean{
         let objectType = this.getObjectType(target);
 
         console.log("objectType:"+ObjectType[objectType]);
@@ -747,13 +847,41 @@ export class GameMain{
         if(permission == null){
             throw new Error("checkPermission:unknown phase");
         }
+
+        //LineGroupの場合はフラグが取られているかどうかをチェック
+        if(target instanceof LineGroup){
+            let lineGroup = target as LineGroup;
+            if(lineGroup.parentBattleLine.flagTaken){
+                console.warn("指定LineGroupはフラグが取られている");
+                return false;
+            }
+        }
+
+        //ピースの場合はフラグが取られているかどうかをチェック
+        if(target instanceof Piece){
+            let piece = target as Piece;
+            if(piece.isFieldPiece){
+                if(piece.parentLineGroup.parentBattleLine.flagTaken){
+                    console.warn("指定ピースが置かれているBattleLineはフラグが取られている");
+                    return false;
+                }
+            }
+        }
+
+
         
+
         return permission;
     }
 
+
+
+
     //ターゲットをもとにObjectTypeを求める
     public getObjectType(target:any):ObjectType{
-        if(target instanceof LineGroup){
+        if(target == this.passButton){
+            return ObjectType.PASS;
+        }else if(target instanceof LineGroup){
             const line = target as LineGroup;
             if(this.turnManager.currentPlayer == line.sideNumber){
                 return ObjectType.FIELD_ACTIVE;

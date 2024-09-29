@@ -4,13 +4,39 @@
 export const PLAYER_A = 0;
 export const PLAYER_B = 1;
 
+export type Players = typeof PLAYER_A | typeof PLAYER_B;
+
 //現在どっちのターンかの定数
 export type TurnSide = typeof PLAYER_A | typeof PLAYER_B;
+
+// 勝利タイプを表す列挙型
+export enum VictoryType {
+    STRAIGHT_FLUSH = 'STRAIGHT_FLUSH',
+    THREE_OF_A_KIND = 'THREE_OF_A_KIND',
+    FLUSH = 'FLUSH',
+    STRAIGHT = 'STRAIGHT',
+    SUM = 'SUM',
+    NO_HAND = 'NO_HAND'
+}
+
+export const victoryTypeNames: Map<VictoryType, string> = new Map([
+    [VictoryType.STRAIGHT_FLUSH, "ストレートフラッシュ"],
+    [VictoryType.THREE_OF_A_KIND, "スリーカード"],
+    [VictoryType.FLUSH, "フラッシュ"],
+    [VictoryType.STRAIGHT, "ストレート"],
+    [VictoryType.SUM, "ブタ"],
+    [VictoryType.NO_HAND, "役無し"]
+]);
+
+export enum ResolutionState {
+    RESOLVED = "解決",
+    UNRESOLVED = "未解決"
+}
 
 // Phaseを表す列挙型を定義
 export enum Phase {
     STARTUP,
-    TROOP,
+    PLAYPIECE_OR_FLAG,
     ALEXANDER,
     DARIUS,
     COMPANION,
@@ -26,6 +52,7 @@ export enum Phase {
     TRAITOR1,
     TRAITOR2,
     DRAW,
+    NONE,
   }
 
   
@@ -38,21 +65,35 @@ export enum PieceType {
 
 // Tacticsを表す列挙型を定義
 export enum Tactics {
-    ALEXANDER = 0x0600,
-    DARIUS = 0x0601,
-    COMPANION = 0x0602,
-    SHIELD = 0x0603,
-    FOG = 0x0604,
-    MUD = 0x0605,
-    SCOUT = 0x0606,
-    REDEPLOY = 0x0607,
-    DESERTER = 0x0608,
-    TRAITOR = 0x0609
+    //戦術カードでない
+    NOT_TACTICS,
+    ALEXANDER,
+    DARIUS,
+    COMPANION,
+    SHIELD,
+    FOG,
+    MUD,
+    SCOUT,
+    REDEPLOY,
+    DESERTER,
+    TRAITOR
 }
 
+// カードの色を表す列挙型（バトルライン仕様）
+export enum CardColor {
+    COLORLESS = 0,  // 無色
+    RED = 1,
+    BLUE = 2,
+    GREEN = 3,
+    YELLOW = 4,
+    PURPLE = 5,
+    ORANGE = 6,     // バトルラインの追加色
+    ALL_COLORS = 7  // 全色
+}
 
 // Tactics定数に対応する日本語名のMap
 export const tacticsJapaneseNames: Map<Tactics, string> = new Map([
+    [Tactics.NOT_TACTICS, ""],  
     [Tactics.ALEXANDER, "隊長"],   // 任意の色の任意の数字として使用可能
     [Tactics.DARIUS, "隊長"],           // 任意の色の任意の数字として使用可能
     [Tactics.COMPANION, "援軍"],        // 任意の色の8として使用可能
@@ -65,8 +106,38 @@ export const tacticsJapaneseNames: Map<Tactics, string> = new Map([
     [Tactics.TRAITOR, "裏切り"]           // 敵の部隊カードを1枚奪取
 ]);
 
+// CardColor と BaseName の対応 Map を作成
+export const cardColorBaseNameMap: Map<CardColor, string> = new Map([
+    [CardColor.COLORLESS, "obj_white_base"],
+    [CardColor.RED, "obj_red_base"],
+    [CardColor.BLUE, "obj_blue_base"],
+    [CardColor.GREEN, "obj_green_base"],
+    [CardColor.YELLOW, "obj_yellow_base"],
+    [CardColor.PURPLE, "obj_purple_base"],
+    [CardColor.ORANGE, "obj_orange_base"],
+    [CardColor.ALL_COLORS, "obj_white_base"] // ALL_COLORS は COLORLESS と同じ白いベースを使用
+]);
+
+
+
+// Tactics定数に対応するカード色のMap
+export const tacticsColors: Map<Tactics, CardColor> = new Map([
+    [Tactics.NOT_TACTICS, CardColor.COLORLESS],
+    [Tactics.ALEXANDER, CardColor.ALL_COLORS],   // 任意の色の任意の数字として使用可能
+    [Tactics.DARIUS,  CardColor.ALL_COLORS],           // 任意の色の任意の数字として使用可能
+    [Tactics.COMPANION,  CardColor.ALL_COLORS],        // 任意の色の8として使用可能
+    [Tactics.SHIELD, CardColor.ALL_COLORS],           // 任意の色の1, 2, または3として使用可能
+    [Tactics.FOG,  CardColor.COLORLESS],                   // 特定の戦列を無効化
+    [Tactics.MUD,CardColor.COLORLESS],                 // 特定の戦列を4枚で完成とする
+    [Tactics.SCOUT, CardColor.COLORLESS],               // カードを引いて捨てる
+    [Tactics.REDEPLOY, CardColor.COLORLESS],           // 味方のカードを移動または除去
+    [Tactics.DESERTER, CardColor.COLORLESS],           // 敵のカードを1枚除去
+    [Tactics.TRAITOR, CardColor.COLORLESS]           // 敵の部隊カードを1枚奪取
+]);
+
 // TacticsとPhaseの対応関係を持つMap
 export const tacticsPhaseMap: Map<Tactics, Phase> = new Map([
+    [Tactics.NOT_TACTICS, Phase.NONE],
     [Tactics.ALEXANDER, Phase.ALEXANDER],
     [Tactics.DARIUS, Phase.DARIUS],
     [Tactics.COMPANION, Phase.COMPANION],
@@ -97,6 +168,12 @@ export enum Weather {
     FOG = 0,
     MUD = 1,
 }
+
+export const wetherName : Map<Weather, string> = new Map([
+    [Weather.FOG, "霧"],
+    [Weather.MUD, "沼"]
+]);
+
 
 //天候変化カードと天候の対応関係を持つMap
 export const tacticsWeatherMap: Map<Tactics, Weather> = new Map([
@@ -140,3 +217,18 @@ export enum ObjectType{
     PASS,
 }
 
+// プレイヤーがカードをプレイできるかどうかの結果
+//
+export enum CheckPlayerCanPlayCardResult{
+    OK,//プレイ可能
+    DECK_EMPTY,//デッキが空
+    FIELD_FULL_AND_NOPLAYTACTICS,//フィールドがいっぱいでプレイ出来る戦術がない、戦術を使用できる条件を満たしていないときもこれ
+}
+
+//勝利条件を表す列挙型
+//フラグを5つ取得するか隣接したフラグを3連続で取得するか
+export enum WinCondition{
+    NONE,//勝利条件満たさず
+    FLAG5,//フラグを5つ取得
+    FLAG3INROW//隣接したフラグを3連続で取得
+}

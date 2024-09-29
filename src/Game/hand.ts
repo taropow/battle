@@ -97,6 +97,7 @@ export class Hand extends EEntity{
 
     public addPiece2(pieceData:PieceData):Piece{
         let p:Piece = new Piece(this.gm, 0,0,pieceData);  
+        
         this.addPiece(p);
         return p;
     }
@@ -165,7 +166,8 @@ export class Hand extends EEntity{
     }
 
     public unSelectPiece():void{
-        this.alignPieces();
+        console.log("unSelectPiece "+ this.sideNumber);
+        this.alignPieces(true);
         this._selectedPiece = null;
     }
 

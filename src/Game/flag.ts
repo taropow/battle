@@ -19,8 +19,20 @@ export class Flag extends ESprite{
     public enableTouch():void{
         this.touchable = true;
         this.onPointDown.add(() => {
-            this.parentBattleLine.onFlagTouch(this);
+            this.onTouch();
         },this);
+    }
+
+    public onTouch():void{
+        this.parentBattleLine.onFlagTouch(this);
+    }
+
+    public hideFlag():void{
+        this.hide();
+    }
+
+    public showFlag():void{
+        this.show();
     }
 
     public centerMove(x:number, y:number):void{

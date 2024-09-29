@@ -5,14 +5,13 @@ import { ELabel } from "../EClass/ELabel";
 import { ESprite } from "../EClass/ESprite";
 import { GameMain } from "../gameMain";
 import { GameSystem } from "../gameSystem";
-import { PieceType, tacticsJapaneseNames } from "./const";
+import { PieceType, tacticsJapaneseNames ,cardColorBaseNameMap} from "./const";
 import { Hand } from "./hand";
 import { LineGroup } from "./line";
 import { PieceData } from "./pieceManager";
 
 //バトルラインで使用する色定義、無色と6色
-export var pieceColor:myArray = new myArray("white","red","green","blue","yellow","purple","orange");
-export var pieceBaseName:myArray = new myArray("obj_white_base","obj_red_base","obj_green_base","obj_blue_base","obj_yellow_base","obj_purple_base","obj_orange_base");
+export var pieceColor:myArray = new myArray("white","red","blue","green","yellow","purple","orange");
 
 //pieceクラス
 export class Piece extends EEntity{
@@ -24,6 +23,8 @@ export class Piece extends EEntity{
     private _parentHand:Hand;
 
     private _pieceData:PieceData;
+
+    private frameSprite:ESprite;
 
     public get parentLineGroup():LineGroup{
         return this._parentLineGroup;
@@ -37,15 +38,15 @@ export class Piece extends EEntity{
     }
 
     public get valueNumber():number{
-        return this._pieceData.valueNumber;
+        return this._pieceData.value;
     }
 
     public get colorNumber():number{
-        return this._pieceData.colorNumber;
+        return this._pieceData.color;
     }
 
     public getBgBaseName():string{
-        return pieceBaseName[this.colorNumber];
+        return cardColorBaseNameMap.get(this.colorNumber);
     }
 
     constructor(gm:GameMain, x:number, y:number,pieceData:PieceData){
@@ -53,17 +54,22 @@ export class Piece extends EEntity{
 
         this._pieceData = pieceData;
 
+        console.log(pieceData.tactics);
+
         let bgBaseString:string = this.getBgBaseName();
-        console.log(pieceColor);
+        console.log(this.colorNumber);
         console.log("Piece color:"+bgBaseString);
 
+        console.log(gm.assets[bgBaseString]);
         let offsetX = -gm.assets[bgBaseString].width/2;
 
 
         this.base = new ESprite(gm, bgBaseString, offsetX, 0);
         this.append(this.base);
 
-        
+        this.frameSprite = new ESprite(gm, "obj_frame", offsetX - 4, -4);
+        this.append(this.frameSprite);
+        this.hideFrame();
 
         //数字を表示
         let labelWidth = 80;
@@ -71,13 +77,13 @@ export class Piece extends EEntity{
         
         
         
-        let valueNumber = pieceData.valueNumber;
+        let valueNumber = pieceData.value;
         let valueString ="";
 
         if(pieceData.pieceType == PieceType.TROOP){
             valueString = valueNumber.toString();
         }else if(pieceData.pieceType == PieceType.TACTICS){
-            valueString = tacticsJapaneseNames.get(valueNumber);
+            valueString = tacticsJapaneseNames.get(pieceData.tactics);
         }else{
             console.log(valueNumber);
             throw new Error("invalid pieceType");
@@ -111,6 +117,12 @@ export class Piece extends EEntity{
     
     }
 
+    //フィールドに配置されているかどうか
+    public isFieldPiece():boolean{
+        if(this.parentLineGroup == null)return false;
+        return true;
+    }
+
     public setParentGroup(group:LineGroup):void{
         this._parentLineGroup = group;
     }
@@ -127,10 +139,18 @@ export class Piece extends EEntity{
 
         return false;
     }
+
+    public showFrame():void{
+        this.frameSprite.show();
+    }
+
+    public hideFrame():void{
+        this.frameSprite.hide();
+    }
     
 
     public setNumber(num:number):void{
-        this._pieceData.valueNumber = num;
+        this._pieceData.value = num;
         this.numLabel.text = num.toString();
         this.numLabel2.text = num.toString();
         this.numLabel.invalidate();

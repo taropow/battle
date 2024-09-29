@@ -1,11 +1,14 @@
 //バトルラインのターン管理クラス
-import { Phase, PLAYER_A,PLAYER_B, TurnSide as Player } from "./const";
+import { GameMain } from "../gameMain";
+import { Phase, PLAYER_A,PLAYER_B, TurnSide } from "./const";
 
 export class TurnManager{
-    private _currentPlayer:Player;
+    private _currentPlayer:TurnSide;
     private _currentPhase:Phase;
 
-    public get currentPlayer():Player{
+    private gm:GameMain;
+
+    public get currentPlayer():TurnSide{
         return this._currentPlayer;
     }
 
@@ -17,24 +20,46 @@ export class TurnManager{
         this._currentPhase = phase;
     }
 
-    constructor(){
+    constructor(gm:GameMain){
         console.log("TurnManager constructor");
+        this.gm = gm;
         this._currentPlayer = PLAYER_A;
-        this._currentPhase = Phase.TROOP;
+        this._currentPhase = Phase.STARTUP;
+
     }
 
+    
+
     //ターンを変更する
+    //フェイズをピースプレイかフラッグプレイに変更する
     public switchToNextPlayer():void{
+        
         if(this._currentPlayer == PLAYER_A){
             this._currentPlayer = PLAYER_B;
         }else{
             this._currentPlayer = PLAYER_A;
         }
+        this.currentPhase = Phase.STARTUP;
+        console.log("switchToNextPlayer "+Phase[this.currentPhase]);
+        //選択状態を解除
+        this.gm.playerA_Hand.unSelectPiece();
+        this.gm.playerB_Hand.unSelectPiece();
+        this.gm.executeTurnInitAction();
     }
 
+    //ゲーム開始時の初期フェーズ
+    public GameStartFirstPhase():void{
+        this.currentPhase = Phase.STARTUP;
+        this.gm.executeTurnInitAction();
+    }
+
+    //フェーズを進める
     public transitionPhase():void{
         switch (this.currentPhase) {
-            case Phase.TROOP:
+            case Phase.STARTUP:
+                this.currentPhase = Phase.PLAYPIECE_OR_FLAG;
+                break;
+            case Phase.PLAYPIECE_OR_FLAG:
               this.currentPhase = Phase.DRAW;
               break;
             case Phase.ALEXANDER://アレキサンダー
@@ -47,7 +72,7 @@ export class TurnManager{
             case Phase.DRAW:
               // ドローフェーズ後、次のプレイヤーのターンへ
               this.switchToNextPlayer();
-              this.currentPhase = Phase.TROOP;
+              
               break;
             case Phase.REDEPLOY1:
                 this.currentPhase = Phase.REDEPLOY2;
@@ -69,7 +94,7 @@ export class TurnManager{
                 break;
             case Phase.SCOUT3:
                 this.switchToNextPlayer();
-                this.currentPhase = Phase.TROOP;
+                
                 break;
             case Phase.DESERTER:
                 this.currentPhase = Phase.DRAW;
@@ -83,6 +108,7 @@ export class TurnManager{
           }
 
           console.log("遷移Phase:"+Phase[this.currentPhase]);
+          this.gm.executeTurnInitAction();
     }
 
 

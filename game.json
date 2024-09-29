@@ -512,6 +512,23 @@
 		"font_glyph": {
 			"type": "text",
 			"path": "text/font_glyph.json"
+		},
+		"btn_pass": {
+			"type": "image",
+			"path": "image/btn_pass.png",
+			"width": 145,
+			"height": 79
+		},
+		"obj_frame": {
+			"type": "image",
+			"path": "image/obj_frame.png",
+			"width": 101,
+			"height": 87
+		},
+		"fieldManager": {
+			"type": "script",
+			"path": "script/Game/fieldManager.js",
+			"global": true
 		}
 	},
 	"environment": {

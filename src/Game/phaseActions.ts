@@ -9,7 +9,7 @@ export interface Action {
 // フェーズごとの許可されたアクションを定義するクラス
 export class PhaseActions {
     private static phaseActionMap: { [key in Phase]: ActionType[] } = {
-      [Phase.TROOP]: [ActionType.PLAY_CARD,ActionType.DRAW_CARD],
+      [Phase.PLAYPIECE_OR_FLAG]: [ActionType.PLAY_CARD,ActionType.DRAW_CARD,ActionType.CLAIM_FLAG,ActionType.END_TURN],
       [Phase.ALEXANDER]: [ActionType.PLAY_CARD],
       [Phase.DARIUS]: [ActionType.PLAY_CARD],
       [Phase.COMPANION]: [ActionType.PLAY_CARD],
@@ -26,11 +26,12 @@ export class PhaseActions {
       [Phase.TRAITOR2]: [ActionType.MOVE_CARD, ActionType.END_TRAITOR_ACTION],
       [Phase.DRAW]: [ActionType.DRAW_CARD],
       [Phase.STARTUP]: [], // STARTUPフェーズ用のアクションを定義（必要に応じて）
+      [Phase.NONE]:[] // NONEフェーズ用のアクションを定義（必要に応じて）
     };
 
     //フェイズごとに許可されたオブジェクトのアクセス範囲を定義するクラス ObjectTypeを使用
     private static phasePermissionObjectMap: { [key in Phase]: ObjectType[] } = {
-        [Phase.TROOP]: [ObjectType.FLAG_CENTER,ObjectType.PASS,ObjectType.FIELD_ACTIVE,ObjectType.TROOP_CARDS_ACTIVE,ObjectType.TACTICS_CARDS_ACTIVE,ObjectType.HAND_ACTIVE,ObjectType.TACTICS_CARDS_INACTIVE,ObjectType.TROOP_CARDS_INACTIVE,ObjectType.TROOP_DECK,ObjectType.TACTICS_DECK],
+        [Phase.PLAYPIECE_OR_FLAG]: [ObjectType.FLAG_CENTER,ObjectType.PASS,ObjectType.FIELD_ACTIVE,ObjectType.TROOP_CARDS_ACTIVE,ObjectType.TACTICS_CARDS_ACTIVE,ObjectType.HAND_ACTIVE,ObjectType.TACTICS_CARDS_INACTIVE,ObjectType.TROOP_CARDS_INACTIVE,ObjectType.TROOP_DECK,ObjectType.TACTICS_DECK],
         [Phase.ALEXANDER]: [],
         [Phase.DARIUS]: [],
         [Phase.COMPANION]: [],
@@ -47,7 +48,9 @@ export class PhaseActions {
         [Phase.TRAITOR2]: [ObjectType.FIELD_ACTIVE,ObjectType.TROOP_CARDS_ACTIVE,ObjectType.TACTICS_CARDS_ACTIVE],
         [Phase.DRAW]: [ObjectType.TROOP_DECK,ObjectType.TACTICS_DECK],
         [Phase.STARTUP]: [], // STARTUPフェーズ用のアクションを定義（必要に応じて）
+        [Phase.NONE]:[]
       };
+
 
     public static getPhasePermissionObjectMap(phase:Phase): ObjectType[] {
         return PhaseActions.phasePermissionObjectMap[phase];
@@ -68,6 +71,8 @@ export class PhaseActions {
     }
 
     static isPermissionObjectAllowed(phase: Phase, object: ObjectType): boolean {
+        console.log("isPermissionObjectAllowed Object:" + object + " , Phase:" + phase);
+
         return this.phasePermissionObjectMap[phase].indexOf(object) !== -1;
     }
   }

@@ -2,6 +2,10 @@ import { Point } from "./Point";
 import { myArray } from "./MyArray";
 import { GameMain } from "../gameMain";
 
+  // ユーティリティタイプ: T型のキーを文字列リテラル型のユニオンとして取得
+  type EnumKeys<T> = T[keyof T] extends number | string ? `${T[keyof T]}` : never;
+
+
 //便利機能クラス
 export class Util {
   constructor() {}
@@ -26,6 +30,26 @@ export class Util {
       array[r] = tmp;
     }
     return array;
+  }
+
+
+  /**
+   * 指定されたキーまたは値に一致する enum 要素を返す
+   * @param enumObject 対象の enum オブジェクト
+   * @param keyOrValue 検索するキーまたは値
+   * @returns 一致する enum 要素、一致しない場合は undefined
+   */
+  public static getEnumElement<T extends { [key: string]: string | number }>(
+      enumObject: T,
+      keyOrValue: EnumKeys<T> | T[keyof T]
+  ): T[keyof T] | undefined {
+      // 値から検索
+      if (typeof keyOrValue === "number" || typeof keyOrValue === "string") {
+          const key = Object.keys(enumObject).find(k => enumObject[k as keyof T] === keyOrValue);
+          return key ? enumObject[key as keyof T] : undefined;
+      }
+      // キーから検索
+      return enumObject[keyOrValue as keyof T];
   }
 
   //entityのchildrenのタグnameと一致するものを返す

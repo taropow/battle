@@ -7,13 +7,15 @@ import * as Const from "./const";
 //ピースのデータを表すクラス
 export class PieceData{
     public pieceType:Const.PieceType;
-    public colorNumber:number;
-    public valueNumber:number;
+    public color:Const.CardColor;
+    public value:number;
+    public tactics:Const.Tactics
 
-    constructor(pieceType:Const.PieceType, pieceColor:number, valueNumber:number){
+    constructor(pieceType:Const.PieceType, pieceColor:number, valueNumber:number, tactics:Const.Tactics) {
         this.pieceType = pieceType;
-        this.colorNumber = pieceColor;
-        this.valueNumber = valueNumber;
+        this.color = pieceColor;
+        this.value = valueNumber;
+        this.tactics = tactics;
     }
 }
 
@@ -76,6 +78,11 @@ export class PieceDeck{
 
             return ret;
         }
+
+        //保持してるピースデータを[]配列で取得する
+        public getPieceDataArray():PieceData[]{
+            return this.pieces;
+        }
     
     
         //保持している配列にピースデータを追加する、引数は配列でも単体でも可
@@ -99,12 +106,14 @@ export class PieceDeck{
         
             for (let color = 1; color <= 6; color++) {
                 for (let number = 1; number <= 10; number++) {
-                    let pd:PieceData = new PieceData(Const.PieceType.TROOP, color, number);
+                    let pd:PieceData = new PieceData(Const.PieceType.TROOP, color, number, Const.Tactics.NOT_TACTICS);
                     pieces.push(pd);
                 }
             }
             return pieces;
         }
+
+
     
         //すべての戦術ピースデータを生成する
         //戦術ピースはTactics定数にあるものすべてで色は白一色
@@ -113,17 +122,25 @@ export class PieceDeck{
             //Tactics列挙型の要素を配列に変換　es
             var tacticsArray = [];
             for (const key in Const.Tactics) {
-                if (isNaN(Number(key))) { // 数字キーを取得
-                    tacticsArray.push({ name: key, value: Const.Tactics[key] });
+                if(key == "NOT_TACTICS"){
+                    continue;
                 }
+                if (isNaN(Number(key))) { // 数字キーを取得
+                    tacticsArray.push({ keyIndex: key, value: Const.Tactics[key] });
+                    console.log("tacticsArray" + key);
+                }
+
             }
 
             console.log("tacticsArrayLength" + tacticsArray.length);
     
             for (let i = 0; i < tacticsArray.length; i++) {
-                let v = tacticsArray[i].value;
-                console.log("tacticsArray" + v);
-                let pd:PieceData = new PieceData(Const.PieceType.TACTICS, 0, v);
+                let key = tacticsArray[i].keyIndex;
+                let value = tacticsArray[i].value;
+                let tactics:Const.Tactics = Util.getEnumElement(Const.Tactics, value) as Const.Tactics;
+                let color:Const.CardColor = Const.tacticsColors.get(tactics);
+                console.log("tacticsArray" + tactics);
+                let pd:PieceData = new PieceData(Const.PieceType.TACTICS, color, 0, tactics);
                 pieces.push(pd);
             }
             return pieces;
@@ -155,6 +172,14 @@ export class PieceManager {
         }
         return true;
     }
+
+    //残っている部隊のピースデータを取得する
+    public getAllTroopPieceData():PieceData[]{
+        return this.troopDeck.getPieceDataArray();
+    }
+    
+    
+    
 
         
 
